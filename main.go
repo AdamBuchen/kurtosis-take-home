@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"sort"
@@ -10,7 +11,16 @@ import (
 
 func main() {
 
+	// Read in command-line flags, which should be our yml input and txt output paths, respectively
+	flag.Parse()
+	inputPath := flag.Arg(0)
+	outputPath := flag.Arg(1)
+
+	fmt.Println(inputPath)
+	fmt.Println(outputPath)
+
 	// 1. Read in the YAML file as a string. This will make testing much easier and separate file io from content
+	// Get input path and output path flags
 
 	// TEST:
 
