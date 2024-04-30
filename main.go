@@ -75,7 +75,7 @@ func main() {
 
 	for _, step := range stepsByIdMap {
 		// Deps should be sorted out by now. If not, input was broken.
-		if !step.AllParentDepsClear() {
+		if step.StepGroupNumber == 0 || !step.AllParentDepsClear() {
 			log.Fatalf("dependency issue detected")
 		}
 
