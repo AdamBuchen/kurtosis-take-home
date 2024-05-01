@@ -1,4 +1,3 @@
-# TODO Fill with Dockerfile instructions to build your image
 FROM golang:1.22
 
 WORKDIR /usr/src/app
