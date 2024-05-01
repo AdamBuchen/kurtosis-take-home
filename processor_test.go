@@ -13,6 +13,7 @@ func TestCorrectlyProcessesValidInputs(t *testing.T) {
 		{basicWithDependenciesInput, basicWithDependenciesOutput},
 		{complexWithDependenciesInput, complexWithDependenciesOutput}, // Tests sequencing of parents / children and sorting
 		{multipleNoDependenciesInput, multipleNoDependenciesOutput},
+		{multipleNoDependenciesLinePresentInput, multipleNoDependenciesOutput},
 		{singleDependenciesWithLeadingWhitespaceInputInput, complexWithDependenciesOutput},
 		{singleDependenciesWithTrailingWhitespaceInputInput, complexWithDependenciesOutput},
 		{multipleDependenciesWithTrailingWhitespaceInputInput, complexWithDependenciesOutput},
@@ -373,6 +374,22 @@ const multipleNoDependenciesInput string = `
   precedence: 200
 - step: "enable cdn distribution"
   dependencies: []
+  precedence: 100
+`
+const multipleNoDependenciesLinePresentInput string = `
+- step: "deploy lambda function"
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: []
+  precedence: 100
+- step: "deploy database"
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  precedence: 200
+- step: "enable cdn distribution"
   precedence: 100
 `
 
