@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -61,6 +60,68 @@ const complexWithDependenciesInput string = `
   dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
   precedence: 100
 `
+const complexWithDependenciesSingleStepLeadingTrailingWhitespaceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "  deploy api gateway "
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const complexWithDependenciesMultipleStepLeadingTrailingWhitespaceInput string = `
+- step: " deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: " deploy api gateway "
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket   "
+  dependencies: []
+  precedence: 20
+- step: "  enable dns records "
+  dependencies: []
+  precedence: 200
+- step: "     enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const complexWithDependenciesForPrecedenceTestingInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
 
 var complexWithDependenciesOutput = []string{
 	"enable dns records",
@@ -101,6 +162,69 @@ var multipleNoDependenciesOutput = []string{
 	"create bucket",
 }
 
+const singleDependenciesWithLeadingWhitespaceInputInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const singleDependenciesWithTrailingWhitespaceInputInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const multipleDependenciesWithTrailingWhitespaceInputInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["  deploy lambda function ", "enable dns records "]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket  ", "   enable dns records", "deploy database ", " deploy api gateway"]
+  precedence: 100
+`
+
 // Convenience function to check whether the values of two string arrays are equal
 func areStringArraysEqual(a, b []string) bool {
 
@@ -124,8 +248,14 @@ func TestCorrectlyProcessesValidInputs(t *testing.T) {
 	}{
 		{oneStepInput, oneStepOutput},
 		{basicWithDependenciesInput, basicWithDependenciesOutput},
-		{complexWithDependenciesInput, complexWithDependenciesOutput},
+		{complexWithDependenciesInput, complexWithDependenciesOutput}, // Tests sequencing of parents / children and sorting across 3 dimensions
 		{multipleNoDependenciesInput, multipleNoDependenciesOutput},
+		{singleDependenciesWithLeadingWhitespaceInputInput, complexWithDependenciesOutput},
+		{singleDependenciesWithTrailingWhitespaceInputInput, complexWithDependenciesOutput},
+		{multipleDependenciesWithTrailingWhitespaceInputInput, complexWithDependenciesOutput},
+		{complexWithDependenciesSingleStepLeadingTrailingWhitespaceInput, complexWithDependenciesOutput},
+		{complexWithDependenciesMultipleStepLeadingTrailingWhitespaceInput, complexWithDependenciesOutput},
+		{complexWithDependenciesForPrecedenceTestingInput, complexWithDependenciesOutput},
 	}
 
 	for i, testCase := range tests {
@@ -388,6 +518,321 @@ const singleStepWithNewlineInNameInput string = `
   precedence: 100
 `
 
+const multipleStepsWithSameIdInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 40
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const singleMissingPrecedenceFieldInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: []
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: []
+  precedence: 100
+`
+
+const multipleMissingPrecedenceFieldInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+- step: "deploy api gateway"
+  dependencies: []
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+- step: "enable cdn distribution"
+  dependencies: []
+  precedence: 100
+`
+
+const singleZeroPrecedenceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 0
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const singleNegativePrecedenceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: -20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const singleFloatPrecedenceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 100
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 14.2
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 0
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const singleStringPrecedenceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 100
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: "six"
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 0
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const multipleZeroPrecedenceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 0
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 0
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const multipleNegativePrecedenceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: -50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: -200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const multipleFloatPrecedenceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 5.0
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 0.25
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 9.5
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const multipleDifferingPrecedenceInput string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 5.0
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 0
+- step: "deploy database"
+  dependencies: []
+  precedence: -50
+- step: "create bucket"
+  dependencies: []
+  precedence: five
+- step: "enable dns records"
+  dependencies: []
+  precedence: nine
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const singleInvalidDependency string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns records"]
+  precedence: 100
+- step: "deploy databaseE"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const singleEmptyDependency string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["  ", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
+const multipleInvalidDependency string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["deploy lambda function", "enable dns recordss"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "reate bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: []
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gatewayy"]
+  precedence: 100
+`
+
+const multipleEmptyDependency string = `
+- step: "deploy lambda function"
+  dependencies: []
+  precedence: 50
+- step: "deploy api gateway"
+  dependencies: ["", "enable dns records"]
+  precedence: 100
+- step: "deploy database"
+  dependencies: []
+  precedence: 50
+- step: "create bucket"
+  dependencies: []
+  precedence: 20
+- step: "enable dns records"
+  dependencies: ["    "]
+  precedence: 200
+- step: "enable cdn distribution"
+  dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
+  precedence: 100
+`
+
 func TestCorrectlyRejectsInvalidInputs(t *testing.T) {
 	var tests = []struct {
 		invalidYamlInput string
@@ -406,72 +851,58 @@ func TestCorrectlyRejectsInvalidInputs(t *testing.T) {
 		{multipleStepsWithWhitespaceInput},
 		{multipleStepsWithNewlineInput},
 		{singleStepWithNewlineInNameInput},
+		{multipleStepsWithSameIdInput},
+		{singleMissingPrecedenceFieldInput},
+		{multipleMissingPrecedenceFieldInput},
+		{singleZeroPrecedenceInput},
+		{singleNegativePrecedenceInput},
+		{singleFloatPrecedenceInput},
+		{singleStringPrecedenceInput},
+		{multipleZeroPrecedenceInput},
+		{multipleNegativePrecedenceInput},
+		{multipleFloatPrecedenceInput},
+		{multipleDifferingPrecedenceInput},
+		{singleInvalidDependency},
+		{singleEmptyDependency},
+		{multipleInvalidDependency},
+		{multipleEmptyDependency},
 	}
 
 	for i, testCase := range tests {
 		_, outputErr := ProcessUserJob(testCase.invalidYamlInput)
 		if outputErr == nil {
 			t.Errorf("test %d: should have received error, did not", i)
-		} else {
-			fmt.Println(outputErr.Error())
 		}
 	}
-
-}
-
-func TestMultipleStepsWithTheSameIdAreNotAllowed(t *testing.T) {
-
-}
-
-func TestEachStepMustHaveAPrecdenceField(t *testing.T) {
-
-}
-
-func TestPrecedenceMustBeAPositiveNonzeroInteger(t *testing.T) {
-
-}
-
-func TestDependencyIdsAreValuesOfDependenciesFieldWithLeadingAndTrailingWhitespaceRemoved(t *testing.T) {
-
-}
-
-func TestAnEmptyOrWhitespaceDependencyIsNotAllowed(t *testing.T) {
-
-}
-
-func TestDependenciesOnNonexistentStepIdsAreNotAllowed(t *testing.T) {
-
-}
-
-func TestOutputOrderingIsNewlineSeparatedListOfStepIdsWithNoLeadingOrTrailingWhitespace(t *testing.T) {
-
-}
-
-func TestOutputOrderingIsAlwaysTerminatedByANewline(t *testing.T) {
-
 }
 
 func TestAllStepsMustBeUsedExactlyOnce(t *testing.T) {
 
-}
+	output, outputErr := ProcessUserJob(complexWithDependenciesInput)
+	if outputErr != nil {
+		t.Errorf("received unexpected error: %s", outputErr.Error())
+	}
 
-func TestIdOfAStepIsValueOfStepFieldWithLeadingAndTrailingWhitespaceRemoved(t *testing.T) {
+	counter := make(map[string]int, len(output))
+	for _, outputStr := range output {
+		if _, stringExists := counter[outputStr]; stringExists {
+			t.Errorf("duplicate value when processing")
+			counter[outputStr]++
+		} else {
+			counter[outputStr] = 1
+		}
+	}
 
-}
-
-func TestAStepsDependenciesMustComeBeforeItInOutputOrdering(t *testing.T) {
-
-}
-
-func TestHigherPrecedenceStepsMustComeBeforeLowerPrecedenceStepsWhenBothAreAvailableForRunning(t *testing.T) {
-
-}
-
-func TestWhenTwoReadyToRunStepsHaveTheSamePrecedenceUseLexicographicalOrdering(t *testing.T) {
-
+	for k, v := range counter {
+		if v != 1 {
+			t.Errorf("duplicate values for %s, %d", k, v)
+		}
+	}
 }
 
 /**
+The rules:
+
 A job is a list of steps defined in YAML
 A job must have at least one step
 Each step must have a step field
@@ -487,12 +918,10 @@ A step without the dependencies key is assumed to have no dependencies
 The dependency IDs are the values of the dependencies, field with leading and trailing whitespace removed
 An empty or whitespace dependency ID is not allowed
 Dependencies on nonexistent step IDs are not allowed
-
 An output ordering is a newline-separated list of step IDs (no leading or trailing whitespace)
 An output ordering is always terminated by a newline
 All steps in the job must be used exactly once
 A step's dependencies must come before it in the output ordering
 Higher-precedence steps must come before lower-precedence steps when both are available for running
 When two ready-to-run steps have the same precedence, lexicographical ordering is used: step A comes before step B, etc.
-
 **/

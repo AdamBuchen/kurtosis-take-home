@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
 // Represents the raw unvalidated data coming in from the user input
 type InputJobStep struct {
-	StepName     string   `yaml:"step"`
-	Dependencies []string `yaml:"dependencies"`
-	Precedence   int64    `yaml:"precedence"`
+	StepName             string   `yaml:"step"`
+	Dependencies         []string `yaml:"dependencies"`
+	PrecedenceRaw        string   `yaml:"precedence"`
+	precedenceCalculated int64    //Our calculated value after we convert from user input
 }
 
 type InputJob struct {
@@ -34,6 +36,34 @@ func (inputStep *InputJobStep) ValidateInputStep() error {
 		return fmt.Errorf("newline detected in the StepId")
 	}
 
+	// Check precedence rules. Field must exist (so empty value is invalid)
+	// Must be positive non-zero integer
+	// Our input is a string field so the YAML unmarshal didn't reformat our numbers
+	// If the string exists and is a non-zero integer, it validates. In GetJobStep()
+	// we'll do the work of converting it to an int64
+	precedenceStr := strings.TrimSpace(inputStep.PrecedenceRaw)
+	if precedenceStr == "" {
+		return fmt.Errorf("no precedence was provided")
+	}
+
+	precedenceCalc, calcErr := strconv.ParseInt(precedenceStr, 10, 64)
+	if calcErr != nil || precedenceCalc <= 0 {
+		return fmt.Errorf("invalid int provided")
+	}
+
+	inputStep.precedenceCalculated = precedenceCalc
+
+	depIdsSanitized := make([]string, len(inputStep.Dependencies))
+	for i, depIdStr := range inputStep.Dependencies {
+		sanitized := strings.TrimSpace(depIdStr)
+		if sanitized == "" {
+			return fmt.Errorf("empty dependency id passed")
+		}
+		depIdsSanitized[i] = sanitized
+	}
+
+	inputStep.Dependencies = depIdsSanitized
+
 	return nil
 }
 
@@ -43,7 +73,7 @@ func (inputStep *InputJobStep) GetJobStep() *JobStep {
 	js := &JobStep{
 		StepName:        inputStep.StepName,
 		StepId:          strings.TrimSpace(inputStep.StepName),
-		Precedence:      inputStep.Precedence,
+		Precedence:      inputStep.precedenceCalculated,
 		DependencyIds:   inputStep.Dependencies,
 		DepsToClear:     make(map[string]*JobStep),
 		AllDepsClear:    false,

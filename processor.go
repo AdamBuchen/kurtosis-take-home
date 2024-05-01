@@ -93,7 +93,11 @@ func getStepsByIdMap(inputSteps []*InputJobStep) (map[string]*JobStep, error) {
 
 		jobStep := inputStep.GetJobStep()
 
-		// TODO: Check if key already exists: if so, there's a dupe, which should return error
+		// Check if key already exists: if so, there's a dupe, which should return error
+		if _, isDuplicateStep := output[jobStep.StepId]; isDuplicateStep {
+			return output, fmt.Errorf("duplicate key detected: %s", jobStep.StepId)
+		}
+
 		output[jobStep.StepId] = jobStep
 	}
 
