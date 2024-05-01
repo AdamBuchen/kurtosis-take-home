@@ -1,9 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
+
+func handleFatalError(errStr string) {
+	errCode := 1
+	fmt.Println("error detected: " + errStr)
+
+	os.Exit(errCode)
+}
 
 func getStringFromPath(inputPath string) (string, error) {
 
