@@ -4,6 +4,118 @@ import (
 	"testing"
 )
 
+func TestCorrectlyProcessesValidInputs(t *testing.T) {
+	var tests = []struct {
+		validYamlInput string
+		correctOutput  []string
+	}{
+		{oneStepInput, oneStepOutput},
+		{basicWithDependenciesInput, basicWithDependenciesOutput},
+		{complexWithDependenciesInput, complexWithDependenciesOutput}, // Tests sequencing of parents / children and sorting
+		{multipleNoDependenciesInput, multipleNoDependenciesOutput},
+		{singleDependenciesWithLeadingWhitespaceInputInput, complexWithDependenciesOutput},
+		{singleDependenciesWithTrailingWhitespaceInputInput, complexWithDependenciesOutput},
+		{multipleDependenciesWithTrailingWhitespaceInputInput, complexWithDependenciesOutput},
+		{complexWithDependenciesSingleStepLeadingTrailingWhitespaceInput, complexWithDependenciesOutput},
+		{complexWithDependenciesMultipleStepLeadingTrailingWhitespaceInput, complexWithDependenciesOutput},
+		{complexWithDependenciesForPrecedenceTestingInput, complexWithDependenciesOutput},
+	}
+
+	for i, testCase := range tests {
+		output, outputErr := ProcessUserJob(testCase.validYamlInput)
+		if outputErr != nil {
+			t.Errorf("test %d: expected success, got error: %s", i, outputErr.Error())
+		}
+
+		if !areStringArraysEqual(output, testCase.correctOutput) {
+			t.Errorf("test %d: did not get equal string arrays, got: %v", i, output)
+		}
+	}
+}
+
+func TestCorrectlyRejectsInvalidInputs(t *testing.T) {
+	var tests = []struct {
+		invalidYamlInput string
+	}{
+		{circularDependenciesInput},
+		{selfDependencyInput},
+		{nonYamlStringInput},
+		{nonYamlJsonInput},
+		{emptyStringInput},
+		{missingSingleStepFieldInput},
+		{missingMultipleStepFieldInput},
+		{singleStepWithEmptyInput},
+		{multipleStepsWithEmptyInput},
+		{singleStepWithWhitespaceInput},
+		{singleStepWithNewlineInput},
+		{multipleStepsWithWhitespaceInput},
+		{multipleStepsWithNewlineInput},
+		{singleStepWithNewlineInNameInput},
+		{multipleStepsWithSameIdInput},
+		{singleMissingPrecedenceFieldInput},
+		{multipleMissingPrecedenceFieldInput},
+		{singleZeroPrecedenceInput},
+		{singleNegativePrecedenceInput},
+		{singleFloatPrecedenceInput},
+		{singleStringPrecedenceInput},
+		{multipleZeroPrecedenceInput},
+		{multipleNegativePrecedenceInput},
+		{multipleFloatPrecedenceInput},
+		{multipleDifferingPrecedenceInput},
+		{singleInvalidDependency},
+		{singleEmptyDependency},
+		{multipleInvalidDependency},
+		{multipleEmptyDependency},
+	}
+
+	for i, testCase := range tests {
+		_, outputErr := ProcessUserJob(testCase.invalidYamlInput)
+		if outputErr == nil {
+			t.Errorf("test %d: should have received error, did not", i)
+		}
+	}
+}
+
+func TestAllStepsMustBeUsedExactlyOnce(t *testing.T) {
+
+	output, outputErr := ProcessUserJob(complexWithDependenciesInput)
+	if outputErr != nil {
+		t.Errorf("received unexpected error: %s", outputErr.Error())
+	}
+
+	counter := make(map[string]int, len(output))
+	for _, outputStr := range output {
+		if _, stringExists := counter[outputStr]; stringExists {
+			t.Errorf("duplicate value when processing")
+			counter[outputStr]++
+		} else {
+			counter[outputStr] = 1
+		}
+	}
+
+	for k, v := range counter {
+		if v != 1 {
+			t.Errorf("duplicate values for %s, %d", k, v)
+		}
+	}
+}
+
+// Convenience function to check whether the values of two string arrays are equal
+func areStringArraysEqual(a, b []string) bool {
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 const oneStepInput string = `
 - step: "prepare database"
   dependencies: []
@@ -224,51 +336,6 @@ const multipleDependenciesWithTrailingWhitespaceInputInput string = `
   dependencies: ["create bucket  ", "   enable dns records", "deploy database ", " deploy api gateway"]
   precedence: 100
 `
-
-// Convenience function to check whether the values of two string arrays are equal
-func areStringArraysEqual(a, b []string) bool {
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func TestCorrectlyProcessesValidInputs(t *testing.T) {
-	var tests = []struct {
-		validYamlInput string
-		correctOutput  []string
-	}{
-		{oneStepInput, oneStepOutput},
-		{basicWithDependenciesInput, basicWithDependenciesOutput},
-		{complexWithDependenciesInput, complexWithDependenciesOutput}, // Tests sequencing of parents / children and sorting across 3 dimensions
-		{multipleNoDependenciesInput, multipleNoDependenciesOutput},
-		{singleDependenciesWithLeadingWhitespaceInputInput, complexWithDependenciesOutput},
-		{singleDependenciesWithTrailingWhitespaceInputInput, complexWithDependenciesOutput},
-		{multipleDependenciesWithTrailingWhitespaceInputInput, complexWithDependenciesOutput},
-		{complexWithDependenciesSingleStepLeadingTrailingWhitespaceInput, complexWithDependenciesOutput},
-		{complexWithDependenciesMultipleStepLeadingTrailingWhitespaceInput, complexWithDependenciesOutput},
-		{complexWithDependenciesForPrecedenceTestingInput, complexWithDependenciesOutput},
-	}
-
-	for i, testCase := range tests {
-		output, outputErr := ProcessUserJob(testCase.validYamlInput)
-		if outputErr != nil {
-			t.Errorf("test %d: expected success, got error: %s", i, outputErr.Error())
-		}
-
-		if !areStringArraysEqual(output, testCase.correctOutput) {
-			t.Errorf("test %d: did not get equal string arrays, got: %v", i, output)
-		}
-	}
-}
 
 const circularDependenciesInput string = `
 - step: "deploy lambda function"
@@ -832,73 +899,6 @@ const multipleEmptyDependency string = `
   dependencies: ["create bucket", "enable dns records", "deploy database", "deploy api gateway"]
   precedence: 100
 `
-
-func TestCorrectlyRejectsInvalidInputs(t *testing.T) {
-	var tests = []struct {
-		invalidYamlInput string
-	}{
-		{circularDependenciesInput},
-		{selfDependencyInput},
-		{nonYamlStringInput},
-		{nonYamlJsonInput},
-		{emptyStringInput},
-		{missingSingleStepFieldInput},
-		{missingMultipleStepFieldInput},
-		{singleStepWithEmptyInput},
-		{multipleStepsWithEmptyInput},
-		{singleStepWithWhitespaceInput},
-		{singleStepWithNewlineInput},
-		{multipleStepsWithWhitespaceInput},
-		{multipleStepsWithNewlineInput},
-		{singleStepWithNewlineInNameInput},
-		{multipleStepsWithSameIdInput},
-		{singleMissingPrecedenceFieldInput},
-		{multipleMissingPrecedenceFieldInput},
-		{singleZeroPrecedenceInput},
-		{singleNegativePrecedenceInput},
-		{singleFloatPrecedenceInput},
-		{singleStringPrecedenceInput},
-		{multipleZeroPrecedenceInput},
-		{multipleNegativePrecedenceInput},
-		{multipleFloatPrecedenceInput},
-		{multipleDifferingPrecedenceInput},
-		{singleInvalidDependency},
-		{singleEmptyDependency},
-		{multipleInvalidDependency},
-		{multipleEmptyDependency},
-	}
-
-	for i, testCase := range tests {
-		_, outputErr := ProcessUserJob(testCase.invalidYamlInput)
-		if outputErr == nil {
-			t.Errorf("test %d: should have received error, did not", i)
-		}
-	}
-}
-
-func TestAllStepsMustBeUsedExactlyOnce(t *testing.T) {
-
-	output, outputErr := ProcessUserJob(complexWithDependenciesInput)
-	if outputErr != nil {
-		t.Errorf("received unexpected error: %s", outputErr.Error())
-	}
-
-	counter := make(map[string]int, len(output))
-	for _, outputStr := range output {
-		if _, stringExists := counter[outputStr]; stringExists {
-			t.Errorf("duplicate value when processing")
-			counter[outputStr]++
-		} else {
-			counter[outputStr] = 1
-		}
-	}
-
-	for k, v := range counter {
-		if v != 1 {
-			t.Errorf("duplicate values for %s, %d", k, v)
-		}
-	}
-}
 
 /**
 The rules:
