@@ -48,7 +48,7 @@ func ProcessUserJob(yamlStr string) ([]string, error) {
 	}
 
 	// 5. Copy map to array, verify that all dependencies are clear
-	sortingArr := make([]*JobStep, len(stepsByIdMap))
+	sortingSlice := make([]*JobStep, len(stepsByIdMap))
 	i := 0
 
 	for _, step := range stepsByIdMap {
@@ -57,24 +57,24 @@ func ProcessUserJob(yamlStr string) ([]string, error) {
 			return output, fmt.Errorf("dependency issue detected")
 		}
 
-		sortingArr[i] = step
+		sortingSlice[i] = step
 		i++
 	}
 
 	// 6. Custom sort: StepCycleNumber asc, Precedence desc, StepId asc
-	sort.Slice(sortingArr, func(i, j int) bool {
-		if sortingArr[i].StepCycleNumber != sortingArr[j].StepCycleNumber {
-			return sortingArr[i].StepCycleNumber < sortingArr[j].StepCycleNumber
+	sort.Slice(sortingSlice, func(i, j int) bool {
+		if sortingSlice[i].StepCycleNumber != sortingSlice[j].StepCycleNumber {
+			return sortingSlice[i].StepCycleNumber < sortingSlice[j].StepCycleNumber
 		}
-		if sortingArr[i].Precedence != sortingArr[j].Precedence {
-			return sortingArr[i].Precedence > sortingArr[j].Precedence
+		if sortingSlice[i].Precedence != sortingSlice[j].Precedence {
+			return sortingSlice[i].Precedence > sortingSlice[j].Precedence
 		}
-		return sortingArr[i].StepId < sortingArr[j].StepId
+		return sortingSlice[i].StepId < sortingSlice[j].StepId
 	})
 
 	// 7. Loop through our array once more, build up a string.
 	// Per instructions: "An output ordering is always terminated by a newline"
-	for _, step := range sortingArr {
+	for _, step := range sortingSlice {
 		output = append(output, step.StepId)
 	}
 

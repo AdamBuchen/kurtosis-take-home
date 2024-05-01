@@ -27,7 +27,7 @@ func TestCorrectlyProcessesValidInputs(t *testing.T) {
 			t.Errorf("test %d: expected success, got error: %s", i, outputErr.Error())
 		}
 
-		if !areStringArraysEqual(output, testCase.correctOutput) {
+		if !areStringSlicesEqual(output, testCase.correctOutput) {
 			t.Errorf("test %d: did not get equal string arrays, got: %v", i, output)
 		}
 	}
@@ -100,8 +100,8 @@ func TestAllStepsMustBeUsedExactlyOnce(t *testing.T) {
 	}
 }
 
-// Convenience function to check whether the values of two string arrays are equal
-func areStringArraysEqual(a, b []string) bool {
+// Convenience function to check whether the values of two string slices are equal
+func areStringSlicesEqual(a, b []string) bool {
 
 	if len(a) != len(b) {
 		return false
