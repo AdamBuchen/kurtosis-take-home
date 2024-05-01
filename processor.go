@@ -22,25 +22,25 @@ func ProcessUserJob(yamlStr string) ([]string, error) {
 		return output, fmt.Errorf("invalid yaml: %s", yamlMarshalErr)
 	}
 
-	// 2. Take the inputJob.Steps and get stepsByIdMap (also do validation here)
-	stepsByIdMap, stepsErr := getStepsByIdMap(inputJob.Steps)
+	// 2. Take the inputJob.Steps and get stepsByIdSlice (also do validation here)
+	stepsByIdSlice, stepsErr := getStepsByIdSlice(inputJob.Steps)
 	if stepsErr != nil {
 		return output, fmt.Errorf("could not get steps: %s", stepsErr)
 	}
 
-	if len(stepsByIdMap) == 0 {
+	if len(stepsByIdSlice) == 0 {
 		return output, fmt.Errorf("no steps were provided by user")
 	}
 
 	// 3. Take the stepsByIdMap and get a depsByParent map
-	depsByParent, depsByParentErr := getDepsByParent(stepsByIdMap)
+	depsByParent, depsByParentErr := getDepsByParent(stepsByIdSlice)
 	if depsByParentErr != nil {
 		return output, fmt.Errorf("could not get deps by parent: %s", depsByParentErr)
 	}
 
 	// 4. Loop through stepsByIdMap. Recursively run processChildItem on each of them. By the end, every item should have step cycle number
 	currentCycleNumber := 1
-	for _, step := range stepsByIdMap {
+	for _, step := range stepsByIdSlice {
 		processingErr := processChildItem(step, depsByParent, currentCycleNumber)
 		if processingErr != nil {
 			return output, fmt.Errorf("could not process items: %s", processingErr)
@@ -48,10 +48,10 @@ func ProcessUserJob(yamlStr string) ([]string, error) {
 	}
 
 	// 5. Copy map to array, verify that all dependencies are clear
-	sortingSlice := make([]*JobStep, len(stepsByIdMap))
+	sortingSlice := make([]*JobStep, len(stepsByIdSlice))
 	i := 0
 
-	for _, step := range stepsByIdMap {
+	for _, step := range stepsByIdSlice {
 		// Deps should be sorted out by now. If not, input was broken.
 		if step.StepCycleNumber == 0 || !step.AllParentDepsClear() {
 			return output, fmt.Errorf("dependency issue detected")
@@ -82,9 +82,10 @@ func ProcessUserJob(yamlStr string) ([]string, error) {
 }
 
 // Return a map which is keyed by the id of the step, given an array of user inputs
-func getStepsByIdMap(inputSteps []*InputJobStep) (map[string]*JobStep, error) {
+func getStepsByIdSlice(inputSteps []*InputJobStep) ([]*JobStep, error) {
 
-	output := make(map[string]*JobStep)
+	output := make([]*JobStep, 0)
+	dupeChecker := make(map[string]*JobStep)
 	for _, inputStep := range inputSteps {
 		validationErr := inputStep.ValidateInputStep()
 		if validationErr != nil {
@@ -94,20 +95,22 @@ func getStepsByIdMap(inputSteps []*InputJobStep) (map[string]*JobStep, error) {
 		jobStep := inputStep.GetJobStep()
 
 		// Check if key already exists: if so, there's a dupe, which should return error
-		if _, isDuplicateStep := output[jobStep.StepId]; isDuplicateStep {
+		if _, isDuplicateStep := dupeChecker[jobStep.StepId]; isDuplicateStep {
 			return output, fmt.Errorf("duplicate key detected: %s", jobStep.StepId)
 		}
 
-		output[jobStep.StepId] = jobStep
+		dupeChecker[jobStep.StepId] = jobStep
+		output = append(output, jobStep)
 	}
 
 	// Now we loop over our dependecyIds (array of strings), for each step, and assign a pointer
 	// to that actual parent node in our DepsToClear[parentStepId] map. If a node cannot be found,
 	// that means that the input dependency string does not match any actual steps.
-	for stepId, step := range output {
+	for _, step := range output {
 		for _, parentStepId := range step.DependencyIds {
-			if parent, parentOk := output[parentStepId]; parentOk {
-				output[stepId].DepsToClear[parentStepId] = parent
+			if parent, parentOk := dupeChecker[parentStepId]; parentOk {
+				stepId := step.StepId
+				dupeChecker[stepId].DepsToClear[parentStepId] = parent
 			} else {
 				return output, fmt.Errorf("invalid dependency specified: %s", parentStepId)
 			}
@@ -123,14 +126,14 @@ func getStepsByIdMap(inputSteps []*InputJobStep) (map[string]*JobStep, error) {
 // We want to know if that step had any child dependencies so we can tell them
 // one of their parent dependencies just cleared. To do that lookup, we need
 // this data structure.
-func getDepsByParent(stepsByIdMap map[string]*JobStep) (map[string][]*JobStep, error) {
+func getDepsByParent(stepsByIdSlice []*JobStep) (map[string][]*JobStep, error) {
 
 	output := make(map[string][]*JobStep)
-	for stepId := range stepsByIdMap {
-		output[stepId] = make([]*JobStep, 0)
+	for _, step := range stepsByIdSlice {
+		output[step.StepId] = make([]*JobStep, 0)
 	}
 
-	for _, step := range stepsByIdMap {
+	for _, step := range stepsByIdSlice {
 		for parentId := range step.DepsToClear {
 			output[parentId] = append(output[parentId], step)
 		}

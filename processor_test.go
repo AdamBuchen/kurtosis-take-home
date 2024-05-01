@@ -19,6 +19,7 @@ func TestCorrectlyProcessesValidInputs(t *testing.T) {
 		{complexWithDependenciesSingleStepLeadingTrailingWhitespaceInput, complexWithDependenciesOutput},
 		{complexWithDependenciesMultipleStepLeadingTrailingWhitespaceInput, complexWithDependenciesOutput},
 		{complexWithDependenciesForPrecedenceTestingInput, complexWithDependenciesOutput},
+		{complexValidInput, complexValidOutput},
 	}
 
 	for i, testCase := range tests {
@@ -124,6 +125,116 @@ const oneStepInput string = `
 
 var oneStepOutput = []string{
 	"prepare database",
+}
+
+const complexValidInput string = `
+- step: "restaurant opens"
+  dependencies: []
+  precedence: 100
+- step: "boot up computer system"
+  dependencies: []
+  precedence: 200
+- step: "place orders"
+  dependencies: []
+  precedence: 200
+- step: "cleaning staff arrive"
+  dependencies: ["restaurant opens"]
+  precedence: 100
+- step: "empty trash"
+  dependencies: ["restaurant opens"]
+  precedence: 400
+- step: "open registers"
+  dependencies: ["restaurant opens","boot up computer system"]
+  precedence: 100
+- step: "download data from corporate"
+  dependencies: ["boot up computer system"]
+  precedence: 100
+- step: "house cleaned"
+  dependencies: ["cleaning staff arrive"]
+  precedence: 100
+- step: "kitchen cleaned"
+  dependencies: ["cleaning staff arrive","empty trash"]
+  precedence: 100
+- step: "unlock doors"
+  dependencies: ["empty trash","open registers"]
+  precedence: 100
+- step: "distribute small bills"
+  dependencies: ["open registers"]
+  precedence: 100
+- step: "run reports from last night"
+  dependencies: ["download data from corporate"]
+  precedence: 100
+- step: "prep house"
+  dependencies: ["house cleaned","kitchen cleaned"]
+  precedence: 100
+- step: "daily delivery made"
+  dependencies: ["place orders"]
+  precedence: 100
+- step: "walk-in stocked"
+  dependencies: ["daily delivery made"]
+  precedence: 100
+- step: "daily review done"
+  dependencies: ["distribute small bills","daily delivery made","run reports from last night"]
+  precedence: 100
+- step: "inventory done"
+  dependencies: ["walk-in stocked"]
+  precedence: 100
+- step: "executive approval"
+  dependencies: ["daily delivery made"]
+  precedence: 100
+- step: "chef does meal plan"
+  dependencies: ["inventory done","daily review done"]
+  precedence: 100
+- step: "menu changes finalized"
+  dependencies: ["chef does meal plan"]
+  precedence: 100
+- step: "cook food"
+  dependencies: ["menu changes finalized"]
+  precedence: 100
+- step: "updated menu printed"
+  dependencies: ["menu changes finalized","executive approval"]
+  precedence: 100
+- step: "servers prepped on menu"
+  dependencies: ["updated menu printed"]
+  precedence: 100
+- step: "servers ready to serve"
+  dependencies: ["servers prepped on menu"]
+  precedence: 100
+- step: "seat guests"
+  dependencies: ["prep house","cook food"]
+  precedence: 100
+- step: "serve food"
+  dependencies: ["seat guests","servers ready to serve"]
+  precedence: 100
+`
+
+var complexValidOutput = []string{
+	"boot up computer system",
+	"place orders",
+	"restaurant opens",
+	"empty trash",
+	"cleaning staff arrive",
+	"daily delivery made",
+	"download data from corporate",
+	"open registers",
+	"daily review done",
+	"distribute small bills",
+	"executive approval",
+	"house cleaned",
+	"kitchen cleaned",
+	"run reports from last night",
+	"unlock doors",
+	"walk-in stocked",
+	"chef does meal plan",
+	"inventory done",
+	"prep house",
+	"updated menu printed",
+	"menu changes finalized",
+	"servers prepped on menu",
+	"cook food",
+	"servers ready to serve",
+	"seat guests",
+	"serve food",
 }
 
 const basicWithDependenciesInput string = `
