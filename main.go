@@ -2,11 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
-	"sort"
-
-	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 func main() {
@@ -15,90 +12,39 @@ func main() {
 	flag.Parse()
 	inputPath := flag.Arg(0)
 	outputPath := flag.Arg(1)
-
-	fmt.Println(inputPath)
-	fmt.Println(outputPath)
-
-	// 1. Read in the YAML file as a string. This will make testing much easier and separate file io from content
-	// Get input path and output path flags
-
-	// TEST:
-
-	testYamlStr := `
-- step: "create user 1"
-  dependencies: ["prepare database"]
-  precedence: 100
-- step: "create user 2"
-  dependencies: ["prepare database"]
-  precedence: 50
-- step: "prepare database"
-  dependencies: []
-  precedence: 10
-- step: "create user 3"
-  dependencies: ["create user 4"]
-  precedence: 10
-- step: "create user 4"
-  dependencies: ["create user 2"]
-  precedence: 100
-`
-	// 2. Feed the string into Go YAML parser to get back an InputJob
-	inputJob := InputJob{}
-	yamlMarshalErr := yaml.Unmarshal([]byte(testYamlStr), &inputJob.Steps)
-	if yamlMarshalErr != nil {
-		log.Fatalf("invalid yaml: %s", yamlMarshalErr)
+	if inputPath == "" || outputPath == "" {
+		log.Fatalf("two input arguments required")
 	}
 
-	// 3. Take the inputJob.Steps and get stepsByIdMap (also do validation here)
-	stepsByIdMap, stepsErr := getStepsByIdMap(inputJob.Steps)
-	if stepsErr != nil {
-		log.Fatalf("could not get steps: %s", stepsErr)
+	// Read in Yaml string from input path
+	yamlStr, fileReadErr := getStringFromPath(inputPath)
+	if fileReadErr != nil {
+		log.Fatal("could not open input path: " + fileReadErr.Error())
 	}
 
-	// 4. Take the stepsByIdMap and get a depsByParent map
-	depsByParent, depsByParentErr := getDepsByParent(stepsByIdMap)
-	if depsByParentErr != nil {
-		log.Fatalf("could not get deps by parent: %s", depsByParentErr)
+	// Actually process the user job. If successful, gets back a string that can be directly inserted into
+	// the file at outputPath. This is where the heavy lifting is, and there's a clear interface (YAML in, output text out)
+	// that this is also where our testing can happen, at this interface boundary.
+	outputLines, processingErr := ProcessUserJob(yamlStr)
+	if processingErr != nil {
+		log.Fatalf("could not process user job: " + processingErr.Error())
 	}
 
-	// 5. Loop through stepsByIdMap. Recursively run processChildItem on each of them. By the end, every item should have step group number, and precedence, and name
-	currentGroupNumber := 1
-	for _, step := range stepsByIdMap {
-		processingErr := processChildItem(step, depsByParent, currentGroupNumber)
-		if processingErr != nil {
-			log.Fatalf("could not process items: %s", processingErr)
-		}
+	// Per instructions: An output ordering is always terminated by a newline
+	var builder strings.Builder
+	for _, line := range outputLines {
+		builder.WriteString(line + "\n")
 	}
 
-	// 6. Copy map to array, verify that all dependencies are clear
-	sortingArr := make([]*JobStep, len(stepsByIdMap))
-	i := 0
+	outputStr := builder.String()
 
-	for _, step := range stepsByIdMap {
-		// Deps should be sorted out by now. If not, input was broken.
-		if step.StepGroupNumber == 0 || !step.AllParentDepsClear() {
-			log.Fatalf("dependency issue detected")
-		}
-
-		sortingArr[i] = step
-		i++
+	// Write the resulting lines of text to the file at outputPath
+	saveErr := writeStringToFile(outputStr, outputPath)
+	if saveErr != nil {
+		log.Fatalf("could not write out file: " + saveErr.Error())
 	}
 
-	// 7. Custom sort: StepGroupNumber asc, Precedence desc, StepId asc
-	sort.Slice(sortingArr, func(i, j int) bool {
-		if sortingArr[i].StepGroupNumber != sortingArr[j].StepGroupNumber {
-			return sortingArr[i].StepGroupNumber < sortingArr[j].StepGroupNumber
-		}
-		if sortingArr[i].Precedence != sortingArr[j].Precedence {
-			return sortingArr[i].Precedence > sortingArr[j].Precedence
-		}
-		return sortingArr[i].StepId < sortingArr[j].StepId
-	})
-
-	// 8. Output the lines to a file and return status code 0
-
-	for _, step := range sortingArr {
-		fmt.Println(step.StepId)
-		fmt.Println(step.StepGroupNumber)
-	}
+	// We're done! For now, output the outputStr to STDOUT
+	// TODO: Remove this
 
 }

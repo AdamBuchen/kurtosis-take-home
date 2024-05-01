@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Represents the raw unvalidated data coming in from the user input
 type InputJobStep struct {
@@ -17,7 +20,19 @@ type InputJob struct {
 // contain the details about the failure and should be handled above.
 func (inputStep *InputJobStep) ValidateInputStep() error {
 
-	//TODO: this
+	stepName := inputStep.StepName
+	if stepName == "" {
+		return fmt.Errorf("no step name provided, invalid")
+	}
+
+	stepId := strings.TrimSpace(stepName)
+	if stepId == "" {
+		return fmt.Errorf("step ID would be empty, invalid name")
+	}
+
+	if strings.Contains(stepId, "\n") {
+		return fmt.Errorf("newline detected in the StepId")
+	}
 
 	return nil
 }
@@ -32,7 +47,7 @@ func (inputStep *InputJobStep) GetJobStep() *JobStep {
 		DependencyIds:   inputStep.Dependencies,
 		DepsToClear:     make(map[string]*JobStep),
 		AllDepsClear:    false,
-		StepGroupNumber: 0,
+		StepCycleNumber: 0,
 	}
 
 	return js
@@ -47,7 +62,7 @@ type JobStep struct {
 	DependencyIds   []string            // Copies from the Input Dependencies array (represents parentss)
 	DepsToClear     map[string]*JobStep // Parent Depdendencies
 	AllDepsClear    bool                // Whether all dependencies are clear for this item
-	StepGroupNumber int                 // To group steps that can be run at the same time, and need to be further sorted by precedence desc / StepName asc
+	StepCycleNumber int                 // To group steps that can be run at the same time, and need to be further sorted by precedence desc / StepID asc
 }
 
 // Convenience function to determine if all parent dependencies have been cleared
