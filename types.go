@@ -71,13 +71,12 @@ func (inputStep *InputJobStep) ValidateInputStep() error {
 func (inputStep *InputJobStep) GetJobStep() *JobStep {
 
 	js := &JobStep{
-		StepName:        inputStep.StepName,
-		StepId:          strings.TrimSpace(inputStep.StepName),
-		Precedence:      inputStep.precedenceCalculated,
-		DependencyIds:   inputStep.Dependencies,
-		DepsToClear:     make(map[string]*JobStep),
-		AllDepsClear:    false,
-		StepCycleNumber: 0,
+		StepName:      inputStep.StepName,
+		StepId:        strings.TrimSpace(inputStep.StepName),
+		Precedence:    inputStep.precedenceCalculated,
+		DependencyIds: inputStep.Dependencies,
+		DepsToClear:   make(map[string]*JobStep),
+		AllDepsClear:  false,
 	}
 
 	return js
