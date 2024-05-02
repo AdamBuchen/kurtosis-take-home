@@ -1,8 +1,9 @@
 # VS Code Workspace File
 *.code-workspace
+.vscode
 
 # User Input File
-job.yml
+*.yml
 
 # Code-Generated Output File
-output.txt
+*.txt
