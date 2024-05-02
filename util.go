@@ -9,6 +9,7 @@ import (
 func handleFatalError(errStr string) {
 	errCode := 1
 	fmt.Println("error detected: " + errStr)
+	fmt.Printf("error code: %d\n", errCode)
 
 	os.Exit(errCode)
 }
