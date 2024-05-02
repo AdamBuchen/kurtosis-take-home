@@ -9,6 +9,7 @@ func TestCorrectlyProcessesValidInputs(t *testing.T) {
 		validYamlInput string
 		correctOutput  []string
 	}{
+		{awsInfraInput, awsInfraOutput},
 		{oneStepInput, oneStepOutput},
 		{basicWithDependenciesInput, basicWithDependenciesOutput},
 		{complexWithDependenciesInput, complexWithDependenciesOutput}, // Tests sequencing of parents / children and sorting
@@ -118,6 +119,68 @@ func areStringSlicesEqual(a, b []string) bool {
 	return true
 }
 
+const awsInfraInput string = `
+- step: "user pool"
+  dependencies: []
+  precedence: 200
+- step: "internet gateway"
+  dependencies: ["vpc"]
+  precedence: 250
+- step: "api lambda"
+  dependencies: ["backend lambda","api gateway","authorizer"]
+  precedence: 300
+- step: "s3 bucket"
+  dependencies: []
+  precedence: 500
+- step: "enable api"
+  dependencies: ["api lambda","cdn distribution"]
+  precedence: 1000
+- step: "vpc"
+  dependencies: []
+  precedence: 250
+- step: "acm certificate"
+  dependencies: ["dns hosted zone"]
+  precedence: 200
+- step: "backend lambda"
+  dependencies: ["internet gateway","db cluster"]
+  precedence: 200 
+- step: "cdn distribution"
+  dependencies: ["s3 bucket","acm certificate"]
+  precedence: 250  
+- step: "push new front-end code"
+  dependencies: ["enable api"]
+  precedence: 200  
+- step: "db cluster"
+  dependencies: ["vpc"]
+  precedence: 500
+- step: "authorizer"
+  dependencies: ["api gateway", "user pool"]
+  precedence: 200
+- step: "api gateway"
+  dependencies: ["dns hosted zone","acm certificate"]
+  precedence: 100
+- step: "dns hosted zone"
+  dependencies: []
+  precedence: 500
+`
+
+var awsInfraOutput = []string{
+	"dns hosted zone",
+	"s3 bucket",
+	"vpc",
+	"db cluster",
+	"internet gateway",
+	"acm certificate",
+	"cdn distribution",
+	"backend lambda",
+	"user pool",
+	"api gateway",
+	"authorizer",
+	"api lambda",
+	"enable api",
+	"push new front-end code",
+}
+
 const oneStepInput string = `
 - step: "prepare database"
   dependencies: []
@@ -212,29 +275,29 @@ const complexValidInput string = `
 var complexValidOutput = []string{
 	"boot up computer system",
 	"place orders",
+	"daily delivery made",
+	"download data from corporate",
+	"executive approval",
 	"restaurant opens",
 	"empty trash",
 	"cleaning staff arrive",
-	"daily delivery made",
-	"download data from corporate",
-	"open registers",
-	"daily review done",
-	"distribute small bills",
-	"executive approval",
 	"house cleaned",
 	"kitchen cleaned",
+	"open registers",
+	"distribute small bills",
+	"prep house",
 	"run reports from last night",
+	"daily review done",
 	"unlock doors",
 	"walk-in stocked",
-	"chef does meal plan",
 	"inventory done",
-	"prep house",
-	"updated menu printed",
+	"chef does meal plan",
 	"menu changes finalized",
-	"servers prepped on menu",
 	"cook food",
-	"servers ready to serve",
 	"seat guests",
+	"updated menu printed",
+	"servers prepped on menu",
+	"servers ready to serve",
 	"serve food",
 }
 
@@ -351,8 +414,8 @@ var complexWithDependenciesOutput = []string{
 	"enable dns records",
 	"deploy database",
 	"deploy lambda function",
-	"create bucket",
 	"deploy api gateway",
+	"create bucket",
 	"enable cdn distribution",
 }
 
